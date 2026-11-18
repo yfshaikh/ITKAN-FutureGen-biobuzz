@@ -8,6 +8,11 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+/*
+ * SHOOTER LAB: make R2 spin the flywheel up and shoot only once its speed is steady,
+ * so the driver doesn't have to guess. The "Shooter Speed Lab" page walks through TODO 1 to TODO 7.
+ * Everything below works as-is; the TODOs replace the bang-bang shooter and the stopper timer.
+ */
 @TeleOp(name = "HamzaTeli", group = "Competition")
 public class HamzaTeli extends OpMode {
 
@@ -27,6 +32,8 @@ public class HamzaTeli extends OpMode {
     private static final double STOPPER_CLOSED_POS = 0.0;
     private static final double STOPPER_OPEN_POS   = 0.5;
     private static final double FEED_DURATION_MS   = 300.0; // Time in ms to stay open for 1 pollen
+    // TODO 1 (settings): add VELOCITY_TOLERANCE (how close to the target counts as "at speed")
+    //        and STEADY_MS (how long it must stay there before we shoot).
 
     private static final boolean SWAP_BACK_MOTORS = false;
 
@@ -42,6 +49,7 @@ public class HamzaTeli extends OpMode {
 
     private ElapsedTime feedTimer = new ElapsedTime();
     private boolean isFeeding = false;
+    // TODO 2 (variables): add an ElapsedTime steadyTimer and a boolean wasReady (for the rumble).
 
     @Override
     public void init() {
@@ -94,6 +102,10 @@ public class HamzaTeli extends OpMode {
 
     @Override
     public void loop() {
+        // TODO 5 (shooter): replace the shooter if/else below with one that uses setShooterVelocity,
+        //        works out "ready", and opens the stopper only while ready. Move it ABOVE the
+        //        intake block, because the intake block (TODO 6) needs "ready".
+        // TODO 6 (intake): let the transfer also feed while ready, so holding R2 is enough to shoot.
 
         double y  = deadband(gamepad1.left_stick_y);
         double x  = deadband(-gamepad1.left_stick_x) * 1.1;
@@ -140,6 +152,7 @@ public class HamzaTeli extends OpMode {
         }
 
 
+        // TODO 7 (driver feedback): rumble once when the shooter becomes ready; show READY on telemetry.
         telemetry.addData("Shooter L Vel", shooterLeft.getVelocity());
         telemetry.addData("Shooter R Vel", shooterRight.getVelocity());
         telemetry.addData("Stopper State", isFeeding ? "OPEN (Feeding)" : "CLOSED");
@@ -149,6 +162,9 @@ public class HamzaTeli extends OpMode {
 
 
 
+    // TODO 3 (helpers): write setShooterVelocity(double ticksPerSecond) and double shooterSpeed().
+    // TODO 4 (ready check): write boolean shooterReady().
+    // After TODO 5, runBangBangShooter() and runStopperLogic() aren't used any more: delete them.
     private void runBangBangShooter() {
         double currentVelocity = (shooterLeft.getVelocity() + shooterRight.getVelocity()) / 2.0;
 

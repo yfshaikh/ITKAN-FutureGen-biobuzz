@@ -1,0 +1,418 @@
+{
+  "version": "2.0.0",
+  "timestamp": "2026-11-18T00:00:00.000Z",
+  "startPoint": {
+    "x": 60,
+    "y": 9,
+    "headingDeg": -90,
+    "locked": false
+  },
+  "lines": [
+    {
+      "id": "line-tempauton-1",
+      "color": "#ffc516",
+      "name": "path1",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 2000,
+      "waitBeforeName": "",
+      "waitAfterName": "shoot",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 59.7203,
+        "y": 13.9835
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "constant",
+        "degrees": 270
+      }
+    },
+    {
+      "id": "line-tempauton-2",
+      "color": "#b07aa1",
+      "name": "path2",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 750,
+      "waitBeforeName": "",
+      "waitAfterName": "lowerFlower",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 21.8519,
+        "y": 46.8937
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 270,
+        "endDeg": 180
+      }
+    },
+    {
+      "id": "line-tempauton-3",
+      "color": "#b07aa1",
+      "name": "path3",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 1500,
+      "waitBeforeName": "",
+      "waitAfterName": "intake",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 15.5925,
+        "y": 46.8966
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 180,
+        "endDeg": 180
+      }
+    },
+    {
+      "id": "line-tempauton-4",
+      "color": "#4e79a7",
+      "name": "flower1toshotB",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 2000,
+      "waitBeforeName": "",
+      "waitAfterName": "shoot",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 63.621,
+        "y": 126.3525
+      },
+      "controlPoints": [
+        {
+          "x": 14.4827,
+          "y": 107.2396
+        }
+      ],
+      "heading": {
+        "type": "linear",
+        "startDeg": 180,
+        "endDeg": 80
+      }
+    },
+    {
+      "id": "line-tempauton-5",
+      "color": "#b07aa1",
+      "name": "path5",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 750,
+      "waitBeforeName": "",
+      "waitAfterName": "lowerFlower",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 46.6685,
+        "y": 118.7013
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 80,
+        "endDeg": 90
+      }
+    },
+    {
+      "id": "line-tempauton-6",
+      "color": "#b07aa1",
+      "name": "path6",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 1500,
+      "waitBeforeName": "",
+      "waitAfterName": "intake",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 46.6287,
+        "y": 125.5548
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 90,
+        "endDeg": 90
+      }
+    },
+    {
+      "id": "line-tempauton-7",
+      "color": "#4e79a7",
+      "name": "path7",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 2000,
+      "waitBeforeName": "",
+      "waitAfterName": "shoot",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 63.8507,
+        "y": 126.3962
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 90,
+        "endDeg": 80
+      }
+    },
+    {
+      "id": "line-tempauton-8",
+      "color": "#59a14f",
+      "name": "path8",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 23.9616,
+        "y": 107.4503
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 80,
+        "endDeg": 90
+      }
+    },
+    {
+      "id": "line-tempauton-9",
+      "color": "#59a14f",
+      "name": "path9",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 10.8261,
+        "y": 107.2791
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 90,
+        "endDeg": 90
+      }
+    }
+  ],
+  "shapes": [
+    {
+      "id": "biobuzz-red-hive",
+      "name": "Red HIVE",
+      "vertices": [
+        {
+          "x": 46,
+          "y": 50
+        },
+        {
+          "x": 48.6,
+          "y": 50
+        },
+        {
+          "x": 48.6,
+          "y": 91.4
+        },
+        {
+          "x": 46,
+          "y": 91.4
+        }
+      ],
+      "color": "#dc2626",
+      "fillColor": "#ff6b6b"
+    },
+    {
+      "id": "biobuzz-blue-hive",
+      "name": "Blue HIVE",
+      "vertices": [
+        {
+          "x": 96.5,
+          "y": 91.4
+        },
+        {
+          "x": 93.9,
+          "y": 91.4
+        },
+        {
+          "x": 93.9,
+          "y": 50
+        },
+        {
+          "x": 96.5,
+          "y": 50
+        }
+      ],
+      "color": "#2563eb",
+      "fillColor": "#60a5fa"
+    },
+    {
+      "id": "biobuzz-flower-top",
+      "name": "Scoring-Side FLOWER",
+      "vertices": [
+        {
+          "x": 43.4,
+          "y": 141.5
+        },
+        {
+          "x": 50.1,
+          "y": 141.5
+        },
+        {
+          "x": 50.1,
+          "y": 139.4
+        },
+        {
+          "x": 46.75,
+          "y": 137.7
+        },
+        {
+          "x": 43.4,
+          "y": 139.4
+        }
+      ],
+      "color": "#dc2626",
+      "fillColor": "#ff6b6b"
+    },
+    {
+      "id": "biobuzz-flower-right",
+      "name": "Blue Alliance FLOWER",
+      "vertices": [
+        {
+          "x": 141.5,
+          "y": 98.1
+        },
+        {
+          "x": 139.4,
+          "y": 98.1
+        },
+        {
+          "x": 137.7,
+          "y": 94.75
+        },
+        {
+          "x": 139.4,
+          "y": 91.4
+        },
+        {
+          "x": 141.5,
+          "y": 91.4
+        }
+      ],
+      "color": "#2563eb",
+      "fillColor": "#60a5fa"
+    },
+    {
+      "id": "biobuzz-flower-bottom",
+      "name": "Audience-Side FLOWER",
+      "vertices": [
+        {
+          "x": 91.15,
+          "y": 0
+        },
+        {
+          "x": 97.8,
+          "y": 0
+        },
+        {
+          "x": 97.8,
+          "y": 2.1
+        },
+        {
+          "x": 94.5,
+          "y": 3.8
+        },
+        {
+          "x": 91.15,
+          "y": 2.1
+        }
+      ],
+      "color": "#2563eb",
+      "fillColor": "#60a5fa"
+    },
+    {
+      "id": "biobuzz-flower-left",
+      "name": "Red Alliance FLOWER",
+      "vertices": [
+        {
+          "x": 0,
+          "y": 50.35
+        },
+        {
+          "x": 2.1,
+          "y": 50.35
+        },
+        {
+          "x": 3.8,
+          "y": 47
+        },
+        {
+          "x": 2.1,
+          "y": 43.65
+        },
+        {
+          "x": 0,
+          "y": 43.65
+        }
+      ],
+      "color": "#dc2626",
+      "fillColor": "#ff6b6b"
+    }
+  ],
+  "sequence": [
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-1"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-2"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-3"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-4"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-5"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-6"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-7"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-8"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-tempauton-9"
+    }
+  ],
+  "fieldPoints": [],
+  "robot": {
+    "forwardVelocity": 58.9,
+    "strafeVelocity": 46.2,
+    "aVelocity": 3.141592653589793,
+    "kFriction": 0.1,
+    "rLength": 18,
+    "rWidth": 18,
+    "safetyMargin": 1,
+    "maxAcceleration": 50,
+    "maxDeceleration": 77
+  },
+  "activePaths": []
+}

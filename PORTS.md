@@ -22,7 +22,7 @@ From the Driver Hub robot configuration, Nov 16 2026. If you change the configur
 | Motor 2 | `tl` | transfer (intake) left |
 | Motor 3 | `fl` | front left wheel |
 | Servo 0 | `f1` | flower bar servo 1 |
-| Servo 1 | `ss` | unknown, not used yet |
+| Servo 1 | `ss` | stopper: holds pollen back until the flywheel is ready (HamzaTeli2: closed/blocking 0.5, open 0.0. HamzaTeli and PedroV2 still have them the wrong way round: 0.0 / 0.5) |
 
 `fl` (letter L) is the front left wheel. `f1` (number one) is flower servo 1.
 

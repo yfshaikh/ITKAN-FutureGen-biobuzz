@@ -11,6 +11,7 @@ import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.Scheduler;
 import static com.pedropathing.ivy.Scheduler.schedule;
 import static com.pedropathing.ivy.commands.Commands.*;
+import static com.pedropathing.ivy.groups.Groups.race;
 import static com.pedropathing.ivy.groups.Groups.sequential;
 import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -19,42 +20,49 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
+/*
+ * PEDROV2: TempAuton's route (same poses, same start heading, same headings on every path)
+ * plus the mechanisms. Each of TempAuton's waitMs(...) placeholders is now a real step:
+ *   waitMs(2000) -> shootFor(SHOOT_MS)     waitMs(750) -> lowerFlower()
+ *   waitMs(1500) -> intakeFor(INTAKE_MS), then liftFlower()
+ * Shooter code (setShooterVelocity, shooterSpeed, shooterReady) is the same as HamzaTeli2.
+ */
 @Autonomous(name = "PedroV2", group = "Autonomous")
 public class PedroV2 extends LinearOpMode {
 
-    private static final double TRANSFER_POWER = -1.0;
+    // ===== Settings (TUNE on the robot) =====
+    private static final double TRANSFER_POWER = -1.0;   // pulls pollen in (same as HamzaTeli's L2)
+    private static final double INTAKE_MS = 1500;        // TUNE: how long intakeFor() runs at a flower
+    private static final double SHOOT_MS  = 1500;        // TUNE: how long shootFor() feeds the shooter
 
-    private static final double TRANSFER_TIME_MS = 1500;//time of intaking
-
-    private static final double REVERSE_POWER  = 1.0;
-
-
-    private static final double TARGET_SHOOTER_VELOCITY = 2000.0; // Ticks per second
-    private static final double SHOOTER_IDLE_POWER      = 0.2;    // Maintenance power
-
+    private static final double TARGET_SHOOTER_VELOCITY = 2000.0; // encoder ticks per second
+    private static final double VELOCITY_TOLERANCE = 100;         // same as HamzaTeli2
+    private static final double STEADY_MS = 150;                  // same as HamzaTeli2
+    private static final double SPINUP_TIMEOUT_MS = 2000;         // shoot anyway if never steady
 
     private static final double FLOWER_UP_POS   = 1.0;
-    private static final double FLOWER_DOWN_POS = 0.9;
+    private static final double FLOWER_DOWN_POS = 0.9;   // TUNE with ServoTuner (HamzaTeli2 uses 0.6)
+    private static final double FLOWER_MOVE_MS  = 750;   // time for the bar to get there
 
+    // Same as HamzaTeli2 (swapped: 0.5 blocks, 0.0 lets pollen through). TUNE with ServoTuner.
+    private static final double STOPPER_CLOSED_POS = 0.5;
+    private static final double STOPPER_OPEN_POS   = 0.0;
 
-    private static final double STOPPER_CLOSED_POS = 0.0;
-    private static final double STOPPER_OPEN_POS   = 0.5;
-    private static final double FEED_DURATION_MS   = 300.0; // Time in ms to stay open for 1 pollen
-
-    private DcMotor frontLeft, frontRight, backLeft, backRight;
     private DcMotor transferLeft, transferRight;
     private DcMotorEx shooterLeft, shooterRight;
     private Servo flowerServo1, flowerServo2;
     private Servo stopperServo;
+    private final ElapsedTime steadyTimer = new ElapsedTime();
 
     private Follower follower;
 
     private final PoseFactory poseFactory = PoseFactory.degrees();
 
-    private final Pose sTART = poseFactory.of(60, 9, 90);
+    private final Pose sTART = poseFactory.of(60, 9, -90);
     private final Pose path1 = poseFactory.of(59.7203, 13.9835, 270);
     private final Pose point2Start = poseFactory.of(59.7203, 13.9835, 270);
     private final Pose point2 = poseFactory.of(21.8519, 46.8937, 180);
@@ -74,28 +82,71 @@ public class PedroV2 extends LinearOpMode {
     private final Pose point9Start = poseFactory.of(23.9616, 107.4503, 90);
     private final Pose point9 = poseFactory.of(10.8261, 107.2791, 90);
 
-
-    // Autonomous routine
+    // Autonomous routine: TempAuton's paths, with the waits replaced by mechanism steps.
     public Command autoRoutine() {
         return sequential(
                 follow(follower, path1()),
-                waitMs(2000),
+                shootFor(SHOOT_MS),                 // was waitMs(2000)
                 follow(follower, path2()),
-                waitMs(750),
+                lowerFlower(),                      // was waitMs(750)
                 follow(follower, path3()),
-                waitMs(1500),
+                intakeFor(INTAKE_MS),               // was waitMs(1500)
+                liftFlower(),
                 follow(follower, flower1toshotB()),
-                waitMs(2000),
+                shootFor(SHOOT_MS),                 // was waitMs(2000)
                 follow(follower, path5()),
-                waitMs(750),
+                lowerFlower(),                      // was waitMs(750)
                 follow(follower, path6()),
-                waitMs(1500),
+                intakeFor(INTAKE_MS),               // was waitMs(1500)
+                liftFlower(),
                 follow(follower, path7()),
-                waitMs(2000),
+                shootFor(SHOOT_MS),                 // was waitMs(2000)
                 follow(follower, path8()),
                 follow(follower, path9())
         );
     }
+
+    // ===== Mechanism commands =====
+    // Flower bar down (HamzaTeli's X button), then wait for it to get there.
+    Command lowerFlower() {
+        return sequential(
+                instant(() -> setFlower(FLOWER_DOWN_POS)),
+                waitMs(FLOWER_MOVE_MS)
+        );
+    }
+
+    // Flower bar up (HamzaTeli's triangle button), then wait for it to get there.
+    Command liftFlower() {
+        return sequential(
+                instant(() -> setFlower(FLOWER_UP_POS)),
+                waitMs(FLOWER_MOVE_MS)
+        );
+    }
+
+    // Intake on for ms milliseconds, then off (HamzaTeli's L2 held for that long).
+    Command intakeFor(double ms) {
+        return sequential(
+                instant(() -> setTransfer(TRANSFER_POWER)),
+                waitMs(ms),
+                instant(() -> setTransfer(0))
+        );
+    }
+
+    // Spin up until the speed is steady (or SPINUP_TIMEOUT_MS passes), open the stopper,
+    // feed for ms milliseconds, close the stopper, let the flywheel coast. (HamzaTeli2's R2.)
+    Command shootFor(double ms) {
+        return sequential(
+                instant(() -> setShooterVelocity(TARGET_SHOOTER_VELOCITY)),
+                instant(() -> steadyTimer.reset()),
+                race(waitUntil(() -> shooterReady()), waitMs(SPINUP_TIMEOUT_MS)),
+                instant(() -> stopperServo.setPosition(STOPPER_OPEN_POS)),
+                intakeFor(ms),
+                instant(() -> stopperServo.setPosition(STOPPER_CLOSED_POS)),
+                instant(() -> setShooterPower(0))
+        );
+    }
+
+    // ===== Helpers (same as HamzaTeli2) =====
     private void setTransfer(double power) {
         transferLeft.setPower(power);
         transferRight.setPower(power);
@@ -106,40 +157,36 @@ public class PedroV2 extends LinearOpMode {
         shooterRight.setPower(power);
     }
 
+    private void setShooterVelocity(double ticksPerSecond) {
+        shooterLeft.setVelocity(ticksPerSecond);
+        shooterRight.setVelocity(ticksPerSecond);
+    }
+
+    private double shooterSpeed() {
+        return (shooterLeft.getVelocity() + shooterRight.getVelocity()) / 2.0;
+    }
+
+    // True only once the speed has stayed close to the target for STEADY_MS.
+    private boolean shooterReady() {
+        double error = Math.abs(shooterSpeed() - TARGET_SHOOTER_VELOCITY);
+        if (error > VELOCITY_TOLERANCE) {
+            steadyTimer.reset();
+        }
+        return steadyTimer.milliseconds() >= STEADY_MS;
+    }
+
     private void setFlower(double position) {
         flowerServo1.setPosition(position);
         flowerServo2.setPosition(position);
     }
 
-    Command transfer() {
-        return sequential(
-                instant(() -> setTransfer(TRANSFER_POWER)),
-                waitMs(TRANSFER_TIME_MS),
-                instant(() -> setTransfer(0))
-        );
-    }
-
-    Command startCollecting() {
-        return sequential(
-                instant(() -> setFlower(FLOWER_DOWN_POS)),
-                waitMs(750)
-        );
-    }
-
-
-
-
     @Override
     public void runOpMode() {
         Scheduler.reset();
-        follower = Constants.create(hardwareMap);
+        follower = Constants.create(hardwareMap);   // sets up the 4 drive motors and the Pinpoint
         follower.setPose(sTART);
         follower.update();
 
-        frontLeft    = hardwareMap.get(DcMotor.class, "fl");
-        frontRight   = hardwareMap.get(DcMotor.class, "fr");
-        backLeft     = hardwareMap.get(DcMotor.class, "bl");
-        backRight    = hardwareMap.get(DcMotor.class, "br");
         transferLeft  = hardwareMap.get(DcMotor.class, "tl");
         transferRight = hardwareMap.get(DcMotor.class, "tr");
         shooterLeft  = hardwareMap.get(DcMotorEx.class, "sl");
@@ -147,11 +194,6 @@ public class PedroV2 extends LinearOpMode {
         flowerServo1 = hardwareMap.get(Servo.class, "f1");
         flowerServo2 = hardwareMap.get(Servo.class, "f2");
         stopperServo = hardwareMap.get(Servo.class, "ss");
-
-        frontLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        backLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
-        backRight.setDirection(DcMotorSimple.Direction.REVERSE);
 
         shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
         shooterRight.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -163,19 +205,12 @@ public class PedroV2 extends LinearOpMode {
         flowerServo2.setDirection(Servo.Direction.REVERSE);
         stopperServo.setDirection(Servo.Direction.FORWARD);
 
-        for (DcMotor m : new DcMotor[]{frontLeft, frontRight, backLeft, backRight}) {
-            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        }
-
-
+        // FLOAT: the flywheel coasts down instead of braking hard. RUN_USING_ENCODER: needed for setVelocity.
         shooterLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         shooterRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         shooterLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-
-        //setFlower(FLOWER_UP_POS);
         stopperServo.setPosition(STOPPER_CLOSED_POS);
 
         telemetry.addLine("Ready. Press START.");
@@ -191,6 +226,7 @@ public class PedroV2 extends LinearOpMode {
             telemetry.addData("x", follower.pose().x());
             telemetry.addData("y", follower.pose().y());
             telemetry.addData("heading", follower.pose().heading());
+            telemetry.addData("shooter speed", shooterSpeed());
 
             if (follower.currentPath() != null) {
                 telemetry.addData("Current path distance remaining", follower.distanceToEndpoint());
@@ -199,6 +235,8 @@ public class PedroV2 extends LinearOpMode {
 
             telemetry.update();
         }
+        setTransfer(0);
+        setShooterPower(0);
     }
 
     public Path path1() {
@@ -210,7 +248,7 @@ public class PedroV2 extends LinearOpMode {
     }
 
     public Path path3() {
-        return Paths.line(point2, point3).reverseTangent();
+        return Paths.line(point3Start, point3).linear(point3Start, point3);
     }
 
     public Path flower1toshotB() {
