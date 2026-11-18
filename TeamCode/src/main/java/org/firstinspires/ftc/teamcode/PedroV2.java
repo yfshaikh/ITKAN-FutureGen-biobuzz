@@ -39,13 +39,13 @@ public class PedroV2 extends LinearOpMode {
     private static final double INTAKE_MS = 1500;        // TUNE: how long intakeFor() runs at a flower
     private static final double SHOOT_MS  = 1500;        // TUNE: how long shootFor() feeds the shooter
 
-    private static final double TARGET_SHOOTER_VELOCITY = 2000.0; // encoder ticks per second
+    private static final double TARGET_SHOOTER_VELOCITY = 1800.0; // encoder ticks per second
     private static final double VELOCITY_TOLERANCE = 100;         // same as HamzaTeli2
     private static final double STEADY_MS = 150;                  // same as HamzaTeli2
     private static final double SPINUP_TIMEOUT_MS = 2000;         // shoot anyway if never steady
 
     private static final double FLOWER_UP_POS   = 1.0;
-    private static final double FLOWER_DOWN_POS = 0.9;   // TUNE with ServoTuner (HamzaTeli2 uses 0.6)
+    private static final double FLOWER_DOWN_POS = 0.6;   // TUNE with ServoTuner (HamzaTeli2 uses 0.6)
     private static final double FLOWER_MOVE_MS  = 750;   // time for the bar to get there
 
     // Same as HamzaTeli2 (swapped: 0.5 blocks, 0.0 lets pollen through). TUNE with ServoTuner.
@@ -68,15 +68,19 @@ public class PedroV2 extends LinearOpMode {
     private final Pose point2 = poseFactory.of(21.8519, 46.8937, 180);
     private final Pose point3Start = poseFactory.of(21.8519, 46.8937, 180);
     private final Pose point3 = poseFactory.of(15.5925, 46.8966, 180);
+
     private final Pose flower1toshotBStart = poseFactory.of(15.5925, 46.8966, 180);
     private final Pose flower1toshotB = poseFactory.of(63.621, 126.3525, 80);
     private final Pose flower1toshotBControl1 = poseFactory.of(14.4827, 107.2396, 0);
     private final Pose point5Start = poseFactory.of(63.621, 126.3525, 80);
     private final Pose point5 = poseFactory.of(46.6685, 118.7013, 90);
     private final Pose point6Start = poseFactory.of(46.6685, 118.7013, 90);
-    private final Pose point6 = poseFactory.of(46.6287, 125.5548, 90);
+        private final Pose point6 = poseFactory.of(50.6287, 125.5548, 90); // 46.6287
+
     private final Pose point7Start = poseFactory.of(46.6287, 125.5548, 90);
-    private final Pose point7 = poseFactory.of(63.8507, 126.3962, 80);
+
+private final Pose point7 = poseFactory.of(63.8507, 126.3962, 80);
+
     private final Pose point8Start = poseFactory.of(63.8507, 126.3962, 80);
     private final Pose point8 = poseFactory.of(23.9616, 107.4503, 90);
     private final Pose point9Start = poseFactory.of(23.9616, 107.4503, 90);
@@ -212,6 +216,8 @@ public class PedroV2 extends LinearOpMode {
         shooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         stopperServo.setPosition(STOPPER_CLOSED_POS);
+        flowerServo1.setPosition(FLOWER_UP_POS);
+        flowerServo2.setPosition(FLOWER_UP_POS);
 
         telemetry.addLine("Ready. Press START.");
         telemetry.update();
