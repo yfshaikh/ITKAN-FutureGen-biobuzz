@@ -37,7 +37,7 @@ public class PedroV3 extends LinearOpMode {
     private static final double INTAKE_MS = 1500;        // TUNE: how long intakeFor() runs at a flower
     private static final double SHOOT_MS  = 1500;        // TUNE: how long shootFor() feeds the shooter
 
-    private static final double TARGET_SHOOTER_VELOCITY = 1800.0; // encoder ticks per second
+    private static final double TARGET_SHOOTER_VELOCITY = 1350; // encoder ticks per second
     private static final double VELOCITY_TOLERANCE = 100;         // same as HamzaTeli2
     private static final double STEADY_MS = 150;                  // same as HamzaTeli2
     private static final double SPINUP_TIMEOUT_MS = 2000;         // shoot anyway if never steady
@@ -70,9 +70,9 @@ public class PedroV3 extends LinearOpMode {
     private final Pose shoot2Control   = poseFactory.of(14.4827, 107.2396, 0);   // curve control point (heading unused)
     private final Pose shoot2Pose      = poseFactory.of(63.621, 126.3525, 80);
     private final Pose flowerDown2Pose = poseFactory.of(46.6685, 118.7013, 90);  // in front of flower 2
-    private final Pose flower2Pose     = poseFactory.of(50.6287, 124.5548, 90);  // pushed into flower 2 (was y 125.5548, moved 2 in up)
-    private final Pose flower2BackPose = poseFactory.of(50.6287, 124.5548 - BACKUP_INCHES, 90);  // backed out: down (-y)
-    private final Pose shoot3Pose      = poseFactory.of(63.8507, 126.3962, 80);
+    private final Pose flower2Pose     = poseFactory.of(49.6287, 128, 90);  // pushed into flower 2 (was y 125.5548, moved 2 in up)
+    private final Pose flower2BackPose = poseFactory.of(49.6287, 128 - BACKUP_INCHES, 90);  // backed out: down (-y)
+    private final Pose shoot3Pose      = poseFactory.of(63.8507, 127.3962, 80);
     private final Pose prepParkPose    = poseFactory.of(23.9616, 107.4503, 90);
     private final Pose parkPose        = poseFactory.of(10.8261, 107.2791, 90);
 

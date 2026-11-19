@@ -23,6 +23,8 @@ import com.qualcomm.robotcore.util.RobotLog;
  * During INIT (gamepad1):
  *   X (cross)   = mode BLIND: PedroV3's current shootFor(): spin up once, open, feed for SHOOT_MS.
  *   O (circle)  = mode GATED: like HamzaTeli2's R2: feed only while the speed is steady, pause after each dip.
+ *   △ (triangle)= mode ONE-AT-A-TIME: for each ball: wait until steady, open for PULSE ms, close. BALLS times.
+ *   D-pad left/right  = pulse length -/+ 25 ms (ONE-AT-A-TIME only)
  *   D-pad up/down     = target speed +/- 50 ticks/s
  *   bumpers R/L       = feed time +/- 250 ms
  * Every 100 ms of the test is logged:  adb logcat | grep ShootTest
@@ -34,6 +36,8 @@ public class ShootTest extends LinearOpMode {
     private static final double TRANSFER_POWER = -1.0;
     private double targetVelocity = 1800.0;   // D-pad up/down in INIT
     private double shootMs = 1500;            // bumpers in INIT
+    private double pulseMs = 150;             // D-pad left/right in INIT: how long the stopper opens per ball
+    private static final int BALLS = 3;
     private static final double VELOCITY_TOLERANCE = 100;
     private static final double STEADY_MS = 150;
     private static final double SPINUP_TIMEOUT_MS = 2000;
@@ -111,6 +115,36 @@ public class ShootTest extends LinearOpMode {
         );
     }
 
+    // ONE-AT-A-TIME: for each ball, wait until the speed is steady, then open the stopper and run the
+    // transfer for just pulseMs (long enough for ONE ball), then close. The next ball waits for the
+    // flywheel to recover, so every ball leaves at the same speed.
+    Command shootOneAtATime(int balls) {
+        Command[] steps = new Command[balls * 3 + 2];
+        int k = 0;
+        steps[k++] = instant(() -> {
+            setShooterVelocity(targetVelocity);
+            phase = "SPINUP";
+            phaseTimer.reset();
+        });
+        for (int i = 0; i < balls; i++) {
+            final boolean first = (i == 0);
+            steps[k++] = sequential(
+                    instant(() -> steadyTimer.reset()),
+                    race(waitUntil(() -> shooterReady()), waitMs(SPINUP_TIMEOUT_MS)),
+                    instant(() -> {
+                        if (first) {
+                            spinUpMs = phaseTimer.milliseconds();
+                            spinUpTimedOut = spinUpMs >= SPINUP_TIMEOUT_MS - 20;
+                            phase = "FEEDING";
+                        }
+                    }));
+            steps[k++] = instant(() -> { setStopper(true); setTransfer(TRANSFER_POWER); });
+            steps[k++] = sequential(waitMs(pulseMs), instant(() -> { setStopper(false); setTransfer(0); }));
+        }
+        steps[k] = instant(() -> { setShooterPower(0); phase = "DONE"; });
+        return sequential(steps);
+    }
+
     // ===== Helpers (same as PedroV3) =====
     private void setTransfer(double power) {
         transferPower = power;
@@ -173,11 +207,15 @@ public class ShootTest extends LinearOpMode {
         flowerServo2.setPosition(FLOWER_UP_POS);
 
         // ===== INIT: pick the mode and settings =====
-        boolean gated = false;
-        boolean prevUp = false, prevDown = false, prevRb = false, prevLb = false;
+        String mode = "BLIND";
+        boolean prevUp = false, prevDown = false, prevRb = false, prevLb = false, prevL = false, prevR = false;
         while (opModeInInit()) {
-            if (gamepad1.cross)  gated = false;
-            if (gamepad1.circle) gated = true;
+            if (gamepad1.cross)    mode = "BLIND";
+            if (gamepad1.circle)   mode = "GATED";
+            if (gamepad1.triangle) mode = "ONE-AT-A-TIME";
+            if (gamepad1.dpad_right && !prevR) pulseMs += 25;
+            if (gamepad1.dpad_left && !prevL)  pulseMs = Math.max(25, pulseMs - 25);
+            prevL = gamepad1.dpad_left; prevR = gamepad1.dpad_right;
             if (gamepad1.dpad_up && !prevUp)          targetVelocity += 50;
             if (gamepad1.dpad_down && !prevDown)      targetVelocity -= 50;
             if (gamepad1.right_bumper && !prevRb)     shootMs += 250;
@@ -185,16 +223,19 @@ public class ShootTest extends LinearOpMode {
             prevUp = gamepad1.dpad_up; prevDown = gamepad1.dpad_down;
             prevRb = gamepad1.right_bumper; prevLb = gamepad1.left_bumper;
 
-            telemetry.addData("Mode", gated ? "GATED (X = blind)" : "BLIND, same as PedroV3 (O = gated)");
+            telemetry.addData("Mode", "%s   (X blind = PedroV3 now, O gated, △ one-at-a-time)", mode);
             telemetry.addData("Target speed", "%.0f ticks/s  (D-pad up/down)", targetVelocity);
-            telemetry.addData("Feed time", "%.0f ms  (bumpers)", shootMs);
+            telemetry.addData("Feed time (blind/gated)", "%.0f ms  (bumpers)", shootMs);
+            telemetry.addData("Pulse per ball (one-at-a-time)", "%.0f ms x %d balls  (D-pad left/right)", pulseMs, BALLS);
             telemetry.addLine("Load pollen, then press START.");
             telemetry.update();
         }
         if (isStopRequested()) return;
 
-        RobotLog.ii("ShootTest", "START mode=%s target=%.0f feedMs=%.0f", gated ? "GATED" : "BLIND", targetVelocity, shootMs);
-        schedule(gated ? shootGated(shootMs) : shootBlind(shootMs));
+        RobotLog.ii("ShootTest", "START mode=%s target=%.0f feedMs=%.0f pulseMs=%.0f", mode, targetVelocity, shootMs, pulseMs);
+        if (mode.equals("GATED"))              schedule(shootGated(shootMs));
+        else if (mode.equals("ONE-AT-A-TIME")) schedule(shootOneAtATime(BALLS));
+        else                                   schedule(shootBlind(shootMs));
         ElapsedTime runtime = new ElapsedTime();
         ElapsedTime logTimer = new ElapsedTime();
 
@@ -213,7 +254,7 @@ public class ShootTest extends LinearOpMode {
                 logTimer.reset();
             }
 
-            telemetry.addData("Mode", gated ? "GATED" : "BLIND");
+            telemetry.addData("Mode", mode);
             telemetry.addData("Phase", phase);
             telemetry.addData("Speed / target", "%.0f / %.0f", speed, targetVelocity);
             telemetry.addData("Stopper", stopperOpen ? "OPEN" : "closed");
