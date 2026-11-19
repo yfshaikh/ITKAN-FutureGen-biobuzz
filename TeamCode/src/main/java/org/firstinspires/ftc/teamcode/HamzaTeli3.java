@@ -128,13 +128,12 @@ public class HamzaTeli3 extends OpMode {
         double x  = deadband(-gamepad1.left_stick_x);
         double rx = deadband(gamepad1.right_stick_x);
 
-        // FIELD-CENTRIC: rotate the stick direction by the robot's heading.
+        // if the user clicks "options", we redo the orientation (whereever the robot is pointing is now "forward")
         pinpoint.update();
         if (gamepad1.options) {
-            pinpoint.setHeading(0, AngleUnit.RADIANS);   // re-zero: robot now faces "away"
+            pinpoint.setHeading(0, AngleUnit.RADIANS);
         }
         double heading = pinpoint.getHeading(AngleUnit.RADIANS);
-        // TUNE: if the robot drives the wrong way after turning it 90 degrees, change -heading to heading (both lines).
         double fieldX = x * Math.cos(-heading) - y * Math.sin(-heading);
         double fieldY = x * Math.sin(-heading) + y * Math.cos(-heading);
         x = fieldX * 1.1;   // strafe correction goes AFTER the rotation (it fixes the robot's sideways motion)
