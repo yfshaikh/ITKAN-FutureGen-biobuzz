@@ -26,6 +26,8 @@ From the Driver Hub robot configuration, Nov 16 2026. If you change the configur
 
 `fl` (letter L) is the front left wheel. `f1` (number one) is flower servo 1.
 
+**Motor type:** set every motor (`fl fr bl br sl sr tl tr`) to **goBILDA 5202/3/4 series** (the matching RPM), NOT "Unspecified Motor". The type decides which way FORWARD spins: with "Unspecified", every direction in the code is reversed (the robot drives and turns backwards). It also sets the encoder ticks used by `setVelocity` on the shooter.
+
 ## Directions set in code
 
 | Part | FORWARD | REVERSE | Set in |
