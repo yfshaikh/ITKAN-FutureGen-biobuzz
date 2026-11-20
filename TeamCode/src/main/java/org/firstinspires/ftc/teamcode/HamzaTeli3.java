@@ -24,11 +24,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class HamzaTeli3 extends OpMode {
 
 
-    private static final double TRANSFER_POWER = -1.0;
+    private static final double TRANSFER_POWER = -0.6;
     private static final double REVERSE_POWER  = 1.0;
 
 
-    private static final double TARGET_SHOOTER_VELOCITY = 2000.0; // Ticks per second
+    private static final double TARGET_SHOOTER_VELOCITY = 1800.0; // Ticks per second
 
 
     private static final double FLOWER_UP_POS   = 1.0;
@@ -37,7 +37,7 @@ public class HamzaTeli3 extends OpMode {
 
     // Swapped: on the robot, 0.0 sat outside (not blocking) and 0.5 swung inside (blocking).
     // TUNE with ServoTuner: CLOSED must block the ball, OPEN must let it through.
-    private static final double STOPPER_CLOSED_POS = 0.5;
+    private static final double STOPPER_CLOSED_POS = 0.7;
     private static final double STOPPER_OPEN_POS   = 0.0;
     // TUNE: how close to the target counts as "at speed"
     private static final double VELOCITY_TOLERANCE = 100;
@@ -69,6 +69,8 @@ public class HamzaTeli3 extends OpMode {
     private ElapsedTime stopperTimer = new ElapsedTime();
     private ElapsedTime runtime = new ElapsedTime();
     private String lastFlowerLog = "", lastStopperLog = "";
+
+    double currentVelocity;
 
     @Override
     public void init() {
@@ -153,7 +155,6 @@ public class HamzaTeli3 extends OpMode {
             setShooterPower(-1.0);
             stopperOpen = false;
         } else if (gamepad1.right_trigger > 0.1) {
-            setShooterVelocity(TARGET_SHOOTER_VELOCITY);
             ready = shooterReady();
             if (ready && !stopperOpen) {
                 stopperOpen = true;           // open, and start the minimum-open timer
@@ -161,11 +162,16 @@ public class HamzaTeli3 extends OpMode {
             } else if (!ready && stopperOpen && stopperTimer.milliseconds() >= STOPPER_MIN_OPEN_MS) {
                 stopperOpen = false;          // only close after it has been open long enough
             }
-        } else {
-            setShooterPower(0);
-            stopperOpen = false;
         }
         stopperServo.setPosition(stopperOpen ? STOPPER_OPEN_POS : STOPPER_CLOSED_POS);
+        ready = shooterReady();
+        currentVelocity = shooterLeft.getVelocity();
+        stopperServo.setPosition(STOPPER_CLOSED_POS);
+        if(!ready) {
+            stopperServo.setPosition(STOPPER_CLOSED_POS);
+        }
+
+
 
 
         // intake also feeds while shooter is ready, so holding R2 is enough to shoot.

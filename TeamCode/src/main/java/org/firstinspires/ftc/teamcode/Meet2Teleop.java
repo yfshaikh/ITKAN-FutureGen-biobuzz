@@ -1,0 +1,280 @@
+package org.firstinspires.ftc.teamcode;
+
+
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.RobotLog;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+
+
+/*
+ * Meet2Teleop = Meet1Teleop + a fix for the ball jamming the stopper.
+ * Problem: the transfer pushes the next ball hard against the closed stopper, and the friction
+ * stops the servo from swinging open. Fix: every time the stopper opens, the transfer first runs
+ * BACKWARDS gently for BACKOFF_MS to pull the ball off the stopper, then feeds forward.
+ * (A Thread.sleep in loop() can't do this: it freezes the whole robot, and the transfer
+ * keeps pushing during the sleep.)
+ *
+ * FIELD-CENTRIC drive; OPTIONS re-zeroes heading. Flywheel always spins; hold R2 to shoot:
+ * the stopper opens only while R2 is held AND the flywheel is steady at target speed.
+ */
+@TeleOp(name = "Meet2Teleop", group = "Competition")
+public class Meet2Teleop extends OpMode {
+
+    private static final double TRANSFER_POWER = -0.8;
+    private static final double REVERSE_POWER  = 1.0;
+
+
+    private static final double TARGET_SHOOTER_VELOCITY = 1600.0; // Ticks per second
+
+
+    private static final double FLOWER_UP_POS   = 1.0;
+    private static final double FLOWER_DOWN_POS = 0.6;
+
+
+    // Swapped: on the robot, 0.0 sat outside (not blocking) and 0.5 swung inside (blocking).
+    // TUNE with ServoTuner: CLOSED must block the ball, OPEN must let it through.
+    private static final double STOPPER_CLOSED_POS = 0.7;
+    private static final double STOPPER_OPEN_POS   = 0.0;
+    // TUNE: how close to the target counts as "at speed"
+    private static final double VELOCITY_TOLERANCE = 100;
+    // TUNE: how long it must stay at speed before we shoot
+    private static final double STEADY_MS = 150;
+    // TUNE: when the stopper opens, run the transfer backwards this long to free the ball, then feed.
+    // Too short: stopper still sticks. Too long: ball drops back too far and the shot is slow.
+    private static final double BACKOFF_MS    = 150;
+    private static final double BACKOFF_POWER = 0.3;   // gentle reverse (REVERSE_POWER direction)
+
+    private static final boolean SWAP_BACK_MOTORS = false;
+
+
+    private DcMotor frontLeft, frontRight, backLeft, backRight;
+    private DcMotor transferLeft, transferRight;
+    private DcMotorEx shooterLeft, shooterRight;
+    private Servo flowerServo1, flowerServo2;
+    private Servo stopperServo;
+    private GoBildaPinpointDriver pinpoint;   // only its gyro (heading) is used here
+
+    private boolean flowerIsDown = false;
+
+
+    // timer to track how long the speed has been steady for
+    private ElapsedTime steadyTimer = new ElapsedTime();
+    // keep track of if the shooter was ready (for the rumble on the controller)
+    private boolean wasReady = false;
+
+    // stopper: open/closed state and how long it has been open
+    private boolean stopperOpen = false;
+    private ElapsedTime stopperTimer = new ElapsedTime();
+    private ElapsedTime runtime = new ElapsedTime();
+    private String lastFlowerLog = "", lastStopperLog = "";
+
+    double currentVelocity;
+
+    @Override
+    public void init() {
+
+        frontLeft    = hardwareMap.get(DcMotor.class, "fl");
+        frontRight   = hardwareMap.get(DcMotor.class, "fr");
+        backLeft     = hardwareMap.get(DcMotor.class, SWAP_BACK_MOTORS ? "br" : "bl");
+        backRight    = hardwareMap.get(DcMotor.class, SWAP_BACK_MOTORS ? "bl" : "br");
+        transferLeft  = hardwareMap.get(DcMotor.class, "tl");
+        transferRight = hardwareMap.get(DcMotor.class, "tr");
+        shooterLeft  = hardwareMap.get(DcMotorEx.class, "sl");
+        shooterRight = hardwareMap.get(DcMotorEx.class, "sr");
+        flowerServo1 = hardwareMap.get(Servo.class, "f1");
+        flowerServo2 = hardwareMap.get(Servo.class, "f2");
+        stopperServo = hardwareMap.get(Servo.class, "ss");
+        pinpoint     = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
+        pinpoint.resetPosAndIMU();   // robot must be still: heading 0 = the way it faces now
+
+        frontLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        backLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        backRight.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        shooterRight.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        transferLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        transferRight.setDirection(DcMotorSimple.Direction.FORWARD);
+
+        flowerServo1.setDirection(Servo.Direction.FORWARD);
+        flowerServo2.setDirection(Servo.Direction.REVERSE);
+        stopperServo.setDirection(Servo.Direction.FORWARD);
+
+        for (DcMotor m : new DcMotor[]{frontLeft, frontRight, backLeft, backRight}) {
+            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        }
+
+
+        shooterLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        shooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+
+        setFlower(FLOWER_UP_POS);
+        stopperServo.setPosition(STOPPER_CLOSED_POS);
+
+        telemetry.addLine("Ready. Press START.");
+        telemetry.update();
+    }
+
+    @Override
+    public void loop() {
+
+        double y  = deadband(gamepad1.left_stick_y);
+        double x  = deadband(-gamepad1.left_stick_x);
+        double rx = deadband(gamepad1.right_stick_x);
+
+        // if the user clicks "options", we redo the orientation (whereever the robot is pointing is now "forward")
+        pinpoint.update();
+        if (gamepad1.options) {
+            pinpoint.setHeading(0, AngleUnit.RADIANS);
+        }
+        double heading = pinpoint.getHeading(AngleUnit.RADIANS);
+        double fieldX = x * Math.cos(-heading) - y * Math.sin(-heading);
+        double fieldY = x * Math.sin(-heading) + y * Math.cos(-heading);
+        x = fieldX * 1.1;   // strafe correction goes AFTER the rotation (it fixes the robot's sideways motion)
+        y = fieldY;
+
+        double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
+        frontLeft.setPower((y + x + rx) / denominator);
+        backLeft.setPower((y - x + rx) / denominator);
+        frontRight.setPower((y - x - rx) / denominator);
+        backRight.setPower((y + x - rx) / denominator);
+
+        // Flywheel always spins at target (R1 = reverse to clear a jam).
+        // Gate opens ONLY while R2 is held AND the flywheel is steady at target speed.
+        // After each shot the speed dips -> ready goes false -> gate closes until it recovers.
+        if (gamepad1.right_bumper) {
+            setShooterPower(-1.0);
+        } else {
+            setShooterVelocity(TARGET_SHOOTER_VELOCITY);
+        }
+        boolean ready = !gamepad1.right_bumper && shooterReady();   // checked every loop so the steady timer stays accurate
+        boolean wantOpen = gamepad1.right_trigger > 0.1 && ready;
+        if (wantOpen && !stopperOpen) {
+            stopperTimer.reset();             // just started opening: start the back-off timer
+        }
+        stopperOpen = wantOpen;
+        stopperServo.setPosition(stopperOpen ? STOPPER_OPEN_POS : STOPPER_CLOSED_POS);
+        boolean backingOff = stopperOpen && stopperTimer.milliseconds() < BACKOFF_MS;
+
+
+        // L1 = reverse; while the stopper is opening, back the ball off it; then feed (R2 or L2).
+        if (gamepad1.left_bumper) {
+            setTransfer(REVERSE_POWER);
+        } else if (backingOff) {
+            setTransfer(BACKOFF_POWER);
+        } else if (gamepad1.left_trigger > 0.1 || stopperOpen) {
+            setTransfer(TRANSFER_POWER);
+        } else {
+            setTransfer(0);
+        }
+
+
+        if (gamepad1.cross) {
+            flowerIsDown = true;
+        } else if (gamepad1.triangle) {
+            flowerIsDown = false;
+        }
+        setFlower(flowerIsDown ? FLOWER_DOWN_POS : FLOWER_UP_POS);
+
+
+        // driver feedback: rumble once when the shooter becomes ready; show READY on telemetry
+        if (ready && !wasReady) {
+            gamepad1.rumble(200);   // one short buzz the moment it's ready
+        }
+
+
+        wasReady = ready;
+
+        // LOGGING. getPosition() is the position we last SENT, not where the servo really is:
+        // if the numbers change but the part doesn't move, it's wiring/config/mechanical, not code.
+        String flowerLog = String.format("cross=%b triangle=%b -> %s (sent %.2f)",
+                gamepad1.cross, gamepad1.triangle, flowerIsDown ? "DOWN" : "UP", flowerServo1.getPosition());
+        String stopperLog = String.format("ready=%b -> %s (sent %.2f)",
+                ready, stopperOpen ? "OPEN" : "CLOSED", stopperServo.getPosition());
+        // every change also goes to the robot log with a timestamp, so brief flickers aren't missed:
+        //   adb logcat | grep Meet2Teleop
+        if (!flowerLog.equals(lastFlowerLog)) {
+            RobotLog.ii("Meet2Teleop", "%.2fs FLOWER %s", runtime.seconds(), flowerLog);
+            lastFlowerLog = flowerLog;
+        }
+        if (!stopperLog.equals(lastStopperLog)) {
+            RobotLog.ii("Meet2Teleop", "%.2fs STOPPER %s speed=%.0f", runtime.seconds(), stopperLog, shooterSpeed());
+            lastStopperLog = stopperLog;
+        }
+
+        telemetry.addData("Heading (deg)", "%.1f   (OPTIONS = re-zero)", Math.toDegrees(heading));
+        telemetry.addData("Shooter", ready ? "READY" : "spinning up");
+        telemetry.addData("Shooter speed", shooterSpeed());
+        telemetry.addData("Shooter L Vel", shooterLeft.getVelocity());
+        telemetry.addData("Shooter R Vel", shooterRight.getVelocity());
+        telemetry.addData("Flower", flowerLog);
+        telemetry.addData("Flower Pos 1 / 2 (sent)", "%.2f / %.2f", flowerServo1.getPosition(), flowerServo2.getPosition());
+        telemetry.addData("Stopper", stopperLog);
+        telemetry.addData("Stopper open for", stopperOpen ? String.format("%.0f ms", stopperTimer.milliseconds()) : "-");
+        telemetry.update();
+    }
+
+
+
+    private void setShooterVelocity(double ticksPerSecond) {
+        shooterLeft.setVelocity(ticksPerSecond);
+        shooterRight.setVelocity(ticksPerSecond);
+    }
+
+    // calculates shooter speed
+    private double shooterSpeed() {
+        return (shooterLeft.getVelocity() + shooterRight.getVelocity()) / 2.0;
+    }
+
+    // This function returns true once the speed has stayed close to the target for STEADY_MS.
+    private boolean shooterReady() {
+        double error = Math.abs(shooterSpeed() - TARGET_SHOOTER_VELOCITY);
+        if (error > VELOCITY_TOLERANCE) {
+            steadyTimer.reset();   // not steady yet: start counting again
+        }
+        if (steadyTimer.milliseconds() >= STEADY_MS) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private double deadband(double v) {
+        return Math.abs(v) < 0.08 ? 0 : v;
+    }
+
+    private void setTransfer(double power) {
+        transferLeft.setPower(power);
+        transferRight.setPower(power);
+    }
+
+    private void setShooterPower(double power) {
+        shooterLeft.setPower(power);
+        shooterRight.setPower(power);
+    }
+
+    private void setFlower(double position) {
+        flowerServo1.setPosition(position);
+        flowerServo2.setPosition(position);
+    }
+
+    @Override
+    public void stop() {
+        frontLeft.setPower(0);
+        frontRight.setPower(0);
+        backLeft.setPower(0);
+        backRight.setPower(0);}
+}
