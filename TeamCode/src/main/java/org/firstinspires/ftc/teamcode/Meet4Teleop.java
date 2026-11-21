@@ -36,7 +36,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 @TeleOp(name = "Meet4Teleop", group = "Competition")
 public class Meet4Teleop extends OpMode {
 
-    private static final double TRANSFER_POWER = -0.8;
+    private static final double TRANSFER_POWER = -1;
     private static final double REVERSE_POWER  = 1.0;
 
 
@@ -234,12 +234,26 @@ public class Meet4Teleop extends OpMode {
                 stopperTimer.reset();         // now times how long it has been closed
                 steadyTimer.reset();          // must be steady at speed again before the next ball
             }
-        } else if (r2 && ready && aimed && stopperTimer.milliseconds() >= MIN_CLOSED_MS) {
+        } else if (r2 && ready && stopperTimer.milliseconds() >= MIN_CLOSED_MS) {
             stopperOpen = true;               // start a pulse
             stopperTimer.reset();             // now times the back-off + feed
         }
-        stopperServo.setPosition(stopperOpen ? STOPPER_OPEN_POS : STOPPER_CLOSED_POS);
+        // DEBUG: hold SHARE = stopper forced OPEN (transfer not touched). If it doesn't move even now,
+        // it's the servo / wiring / config name / something jammed, not the code.
+        boolean forceOpen = gamepad1.share;
+        stopperServo.setPosition(stopperOpen || forceOpen ? STOPPER_OPEN_POS : STOPPER_CLOSED_POS);
         boolean backingOff = stopperOpen && stopperTimer.milliseconds() < BACKOFF_MS;
+
+        // DEBUG: the reason the stopper is in its current state (first thing that's blocking it)
+        String stopperWhy = forceOpen ? "FORCED OPEN (SHARE held)"
+                : stopperOpen ? (backingOff ? "OPEN: backing off" : "OPEN: feeding")
+                : !r2 ? "closed: R2 not held"
+                : gamepad1.right_bumper ? "closed: R1 held (shooter reversed)"
+                : !ready ? String.format("closed: waiting for speed %.0f / %.0f (must stay within %.0f for %.0f ms)",
+                        shooterSpeed(), TARGET_SHOOTER_VELOCITY, VELOCITY_TOLERANCE, STEADY_MS)
+                : !aimed ? String.format("closed: waiting for aim, tx %.1f (needs under %.1f)", tx, ALIGNED_DEG)
+                : stopperTimer.milliseconds() < MIN_CLOSED_MS ? "closed: waiting between balls"
+                : "closed: ?";
 
 
         // L1 = reverse; while the stopper is opening, back the ball off it; then feed (R2 or L2).
@@ -274,8 +288,7 @@ public class Meet4Teleop extends OpMode {
         // if the numbers change but the part doesn't move, it's wiring/config/mechanical, not code.
         String flowerLog = String.format("cross=%b triangle=%b -> %s (sent %.2f)",
                 gamepad1.cross, gamepad1.triangle, flowerIsDown ? "DOWN" : "UP", flowerServo1.getPosition());
-        String stopperLog = String.format("ready=%b -> %s (sent %.2f)",
-                ready, stopperOpen ? "OPEN" : "CLOSED", stopperServo.getPosition());
+        String stopperLog = String.format("%s  (sent %.2f)", stopperWhy, stopperServo.getPosition());
         // every change also goes to the robot log with a timestamp, so brief flickers aren't missed:
         //   adb logcat | grep Meet4Teleop
         if (!flowerLog.equals(lastFlowerLog)) {
