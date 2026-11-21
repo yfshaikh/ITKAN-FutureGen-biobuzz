@@ -224,6 +224,7 @@ public class PedroV3 extends LinearOpMode {
             telemetry.addData("x", follower.pose().x());
             telemetry.addData("y", follower.pose().y());
             telemetry.addData("heading", follower.pose().heading());
+            PoseHandoff.headingRad = follower.pose().heading();   // teleop reads this (saved every loop, in case auton is stopped early)
             telemetry.addData("shooter speed", shooterSpeed());
 
             if (follower.currentPath() != null) {

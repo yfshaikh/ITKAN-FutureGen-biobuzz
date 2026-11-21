@@ -57,6 +57,9 @@ public class Meet3Teleop extends OpMode {
     private static final double MIN_CLOSED_MS = 300;
 
     private static final boolean SWAP_BACK_MOTORS = false;
+    // TUNE: the Pedro heading (degrees) that points AWAY from the drivers. Used only when auton handed
+    // over its heading (PoseHandoff). Test: run auton, start this, push forward: robot must go away from you.
+    private static final double DRIVER_FORWARD_DEG = 0;
 
 
     private DcMotor frontLeft, frontRight, backLeft, backRight;
@@ -97,7 +100,15 @@ public class Meet3Teleop extends OpMode {
         flowerServo2 = hardwareMap.get(Servo.class, "f2");
         stopperServo = hardwareMap.get(Servo.class, "ss");
         pinpoint     = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        pinpoint.resetPosAndIMU();   // robot must be still: heading 0 = the way it faces now
+        if (Double.isNaN(PoseHandoff.headingRad)) {
+            pinpoint.resetPosAndIMU();   // no auton: robot must be still, heading 0 = the way it faces now
+            telemetry.addLine("Heading: zeroed (point robot away from you, or OPTIONS + D-pad)");
+        } else {
+            // auton just ran: keep its heading so field-centric is right without pressing OPTIONS
+            pinpoint.setHeading(PoseHandoff.headingRad - Math.toRadians(DRIVER_FORWARD_DEG), AngleUnit.RADIANS);
+            PoseHandoff.headingRad = Double.NaN;   // use it once; a second teleop run re-zeroes
+            telemetry.addLine("Heading: from auton");
+        }
 
         frontLeft.setDirection(DcMotorSimple.Direction.FORWARD);
         backLeft.setDirection(DcMotorSimple.Direction.FORWARD);
