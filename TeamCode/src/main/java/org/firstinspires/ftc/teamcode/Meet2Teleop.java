@@ -135,10 +135,16 @@ public class Meet2Teleop extends OpMode {
         double x  = deadband(-gamepad1.left_stick_x);
         double rx = deadband(gamepad1.right_stick_x);
 
-        // if the user clicks "options", we redo the orientation (whereever the robot is pointing is now "forward")
+        // OPTIONS = re-zero: wherever the robot points is now "forward" (away from the driver).
+        // Hold OPTIONS + D-pad = tell it which way the robot faces RIGHT NOW, from where you stand,
+        // so you don't have to turn it first: UP = away from you, DOWN = toward you, LEFT / RIGHT = your left / right.
         pinpoint.update();
         if (gamepad1.options) {
-            pinpoint.setHeading(0, AngleUnit.RADIANS);
+            double facing = 0;                       // UP, or OPTIONS alone
+            if (gamepad1.dpad_left)  facing = 90;    // TUNE: if LEFT/RIGHT come out swapped, swap 90 and -90
+            if (gamepad1.dpad_right) facing = -90;
+            if (gamepad1.dpad_down)  facing = 180;
+            pinpoint.setHeading(facing, AngleUnit.DEGREES);
         }
         double heading = pinpoint.getHeading(AngleUnit.RADIANS);
         double fieldX = x * Math.cos(-heading) - y * Math.sin(-heading);
@@ -215,7 +221,7 @@ public class Meet2Teleop extends OpMode {
             lastStopperLog = stopperLog;
         }
 
-        telemetry.addData("Heading (deg)", "%.1f   (OPTIONS = re-zero)", Math.toDegrees(heading));
+        telemetry.addData("Heading (deg)", "%.1f   (OPTIONS = re-zero, +D-pad = facing)", Math.toDegrees(heading));
         telemetry.addData("Shooter", ready ? "READY" : "spinning up");
         telemetry.addData("Shooter speed", shooterSpeed());
         telemetry.addData("Shooter L Vel", shooterLeft.getVelocity());
